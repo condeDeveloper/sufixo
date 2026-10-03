@@ -1,0 +1,55 @@
+name: testes
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  testes:
+    runs-on: ${{ matrix.so }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        so: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # Quase tudo aqui e construcao INDIRETA. O vetor de sufixos nao ordena
+      # sufixos: ele ordena por prefixos de tamanho 2^k e dobra. A funcao Z nao
+      # compara do zero: ela reaproveita o espelho de uma janela. O automato nao
+      # guarda subcadeias: ele guarda classes de posicoes finais.
+      #
+      # Um erro em qualquer uma delas produz uma resposta PLAUSIVEL: uma
+      # permutacao quase ordenada, valores quase certos, um automato que
+      # reconhece quase as subcadeias certas. Nenhuma falha de forma visivel.
+      #
+      # Entao o juiz e direto e burro: ordena as n cadeias comparando caractere
+      # por caractere, conta os prefixos comuns um a um, monta o conjunto de
+      # todas as subcadeias. Custa O(n²) ou pior, e e por isso que serve.
+      #
+      # E a comparacao nao e por amostra: TODAS as cadeias de ate 12 caracteres
+      # sobre dois simbolos, 8.190 textos, e todas as de ate 7 sobre tres.
+      # Cadeia sorteada esconde justamente os casos que quebram: texto todo
+      # igual, texto periodico, sufixo que e prefixo de outro.
+      - name: testes
+        run: dotnet test testes/Sufixo.Testes/Sufixo.Testes.csproj -c Release --nologo -v q
+
+      # As medidas rodam para REGISTRAR numeros.
+      - name: o automato e o limite de 2n-1 estados
+        run: dotnet run --project ferramentas/Medidor/Medidor.csproj -c Release -- automato
+
+      - name: o que a transformada de Burrows e Wheeler faz
+        run: dotnet run --project ferramentas/Medidor/Medidor.csproj -c Release -- bwt
+
+      - name: Kasai contra a contagem um a um
+        run: dotnet run --project ferramentas/Medidor/Medidor.csproj -c Release -- kasai
+
+      - name: custo de construcao de cada estrutura
+        run: dotnet run --project ferramentas/Medidor/Medidor.csproj -c Release -- tamanho
